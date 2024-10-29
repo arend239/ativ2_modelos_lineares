@@ -8,7 +8,7 @@ output:
     toc_float:
         collapsed: true
         smooth_scroll: true
-    toc_depth: 3        
+    toc_depth: 3
     code_folding: show
     theme: flatly
     code_download: true
@@ -40,6 +40,7 @@ set.seed(30102024)
 
 ```{r}
 
+<<<<<<< HEAD:ativ2.rmd
 set.seed(1)
 
 nn          <- c(25, 50, 100, 500, 1000)
@@ -66,6 +67,25 @@ simula_modelo <- function(n) {
     p_value_beta_0 = modelo_sum$coefficients[1, 4],
     p_value_beta_1 = modelo_sum$coefficients[2, 4]
   )
+=======
+lines <- function(n, beta0, beta1, e_var) {
+
+  x          <- runif(n, -3, 3)
+  epsilon    <- rnorm(n, 0, sqrt(e_var))
+  y          <- beta0 + (beta1 * x) + epsilon
+
+  modelo     <- lm(y ~ x)
+  beta_0_hat <- modelo$coefficients[[2]]
+  beta_1_hat <- modelo$coefficients[[1]]
+
+  sigma2_hat <- sum(modelo$residuals^2) / (n - 1)
+
+  list(x = x,
+       y = y,
+       beta_0_hat = beta_0_hat,
+       beta_1_hat = beta_1_hat,
+       sigma2_hat = sigma2_hat)
+>>>>>>> 5058211e84e974b7276b516b8c8be4ec68f65bf5:tarefa2/ativ2.rmd
 }
 
 resultados <- lapply(nn, function(n) {
@@ -87,8 +107,16 @@ dfresultados <- do.call(rbind, lapply(seq_along(nn), function(i) {
   }))
 }))
 
+<<<<<<< HEAD:ativ2.rmd
+=======
+n     <- 50
+beta0 <- 2
+beta1 <- 3
+e_var <- 4
+>>>>>>> 5058211e84e974b7276b516b8c8be4ec68f65bf5:tarefa2/ativ2.rmd
 
 
+<<<<<<< HEAD:ativ2.rmd
 # -- Pipeline pica aqui né, pode falar, ficou duro quando viu isso né
 stats <- dfresultados %>%
   group_by(n) %>%
@@ -122,4 +150,16 @@ ggplot(dfresultados, aes(x = sigma2)) +
   facet_wrap(~ n, scales = "free") +
   labs(title = "Histograma de Sigma^2", x = "Sigma^2", y = "Frequência")
 
+=======
+list_beta0 <- map(samples, ~ unlist(.[3])) %>%
+  map_dbl("beta_0_hat")
+list_beta1 <- map(samples, ~ unlist(.[4])) %>%
+  map_dbl("beta_1_hat")
+list_sigm2 <- map(samples, ~ unlist(.[5])) %>%
+  map_dbl("sigma2_hat")
+
+betas_estim <- data.frame(beta_0_hat_mc = c(list_beta0),
+                          beta_1_hat_mc = c(list_beta1),
+                          sigm2_mc      = c(list_sigm2))
+>>>>>>> 5058211e84e974b7276b516b8c8be4ec68f65bf5:tarefa2/ativ2.rmd
 ```
