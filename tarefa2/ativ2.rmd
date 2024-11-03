@@ -1,4 +1,3 @@
-
 ---
 title: Modelos Lineares
 author:
@@ -15,7 +14,17 @@ output:
 fontsize: 14pt
 ---
 
-Autores: João Vitor da Silva Arend - 00577787, Davi Augusto F. da Silva
+Autores: 
+
+João Vitor da Silva Arend - 00577787, 
+
+Davi Augusto F. da Silva - , 
+
+Diogo Vieri Bolzan - 00580408,
+
+Gabriel -,
+
+Thiago -
 
 ## Instruções
 ### Simulação Monte Carlo dos Betas do Modelo de Regressão
@@ -32,16 +41,12 @@ Autores: João Vitor da Silva Arend - 00577787, Davi Augusto F. da Silva
 ## Resolução
 
 ```{r warning=FALSE, include=FALSE}
-
 library(tidyverse)
 library(dplyr)
-set.seed(30102024)
+set.seed(1234)
 ```
 
 ```{r}
-
-set.seed(1)
-
 nn          <- c(25, 50, 100, 500, 1000)
 monte_carlo <- 1000
 
@@ -52,9 +57,11 @@ simula_modelo <- function(n) {
   beta_1 <- 4
   y <- beta_0 + beta_1 * x + epsilon
 
-  # -- Aqui eu meto os outlier... sei que tem uma função chamada outlier mas não me veio na cabeça de aplicar aq
-  x[n] <- 10
-  y[n] <- 100
+  modelo <- lm(y ~ x)
+  modelo_sum <- summary(modelo)
+  
+  # Outlier
+  y[n] <- beta_0 + beta_1 * x[n] + 2 * modelo_sum$sigma  # Define o outlier como 2 desvios padrão acima do valor estimado
   
   modelo <- lm(y ~ x)
   modelo_sum <- summary(modelo)
@@ -72,7 +79,6 @@ resultados <- lapply(nn, function(n) {
   replicate(monte_carlo, simula_modelo(n), simplify = FALSE)
 })
 
-
 dfresultados <- do.call(rbind, lapply(seq_along(nn), function(i) {
   n <- nn[i]
   do.call(rbind, lapply(resultados[[i]], function(res) {
@@ -88,8 +94,6 @@ dfresultados <- do.call(rbind, lapply(seq_along(nn), function(i) {
 }))
 
 
-
-# -- Pipeline pica aqui né, pode falar, ficou duro quando viu isso né
 stats <- dfresultados %>%
   group_by(n) %>%
   summarise(
@@ -122,3 +126,7 @@ ggplot(dfresultados, aes(x = sigma2)) +
   labs(title = "Histograma de Sigma^2", x = "Sigma^2", y = "Frequência")
 
 ```
+
+## Conclusão
+
+Com o aumento do tamanho da amostra, as estimativas dos betas e do $S^2$ tendem a ser mais estáveis e menos sensíveis ao outlier, indicando robustez do modelo conforme $n$ aumenta.Um outlier atrapalha a forma funcional linear e a homocasticidade e assim consequentemente a normalidade.
