@@ -1,0 +1,114 @@
+---
+title: Modelos Lineares
+author:
+output:
+  html_document:
+    toc: true
+    toc_float:
+        collapsed: true
+        smooth_scroll: true
+    toc_depth: 3
+    code_folding: show
+    theme: flatly
+    code_download: true
+fontsize: 14pt
+---
+
+Autores: João Vitor da Silva Arend - 00577787,
+Davi Augusto F. da Silva
+
+## Instruções
+### Simular um gradiente descendente para estimar os parâmetros $B_0$ e $B_1$
+
+1. Simule um conjunto de dados de 300 obsrvações, considerando o modelo linear
+2. Estime os parâmetros B_0 e B_1 do modelo, considere como função custo a soma dos erros de predição ao quadrado
+3. Utilize o gradiente descendente para achar os valores de B_0 e B_1 que minimizam essa função.
+4. Utilize diferentes valores para alpha
+5. Faça um gganimate dos passos do algoritmo.
+
+```{r data}
+set.seed(42)
+
+n       <- 300
+beta0   <- 3
+beta1   <- 4
+
+x       <- rnorm(n)
+epsilon <- rnorm(n)
+y       <- beta0 + beta1 * x + epsilon
+
+data <- data.frame(x, y)
+```
+
+```{r functions}
+
+cost_function <- function(b0, b1, x, y) {
+  y_pred <- b0 + b1 * x
+  sum((y - y_pred)^2) / (2 * length(y))
+}
+
+# Função de gradiente descendente
+gradient_descent <- function(x, y, b0_init, b1_init, alpha, num_iter) {
+  b0 <- b0_init
+  b1 <- b1_init
+  cost_history <- numeric(num_iter)
+  b0_history <- numeric(num_iter)
+  b1_history <- numeric(num_iter)
+
+  for (i in 1:num_iter) {
+    y_pred <- b0 + b1 * x
+    db0 <- -sum(y - y_pred) / length(y)
+    db1 <- -sum((y - y_pred) * x) / length(y)
+
+    # Atualização dos parâmetros
+    b0 <- B0 - alpha * dB0
+    b1 <- B1 - alpha * dB1
+
+    # Salvar histórico
+    b0_history[i] <- b0
+    b1_history[i] <- b1
+    cost_history[i] <- cost_function(b0, b1, x, y)
+  }
+
+  list(b0 = b0, b1 = b1, b0_history = b0_history, b1_history = b1_history, cost_history = cost_history)
+}
+
+```
+
+```{r}
+
+num_iter <- 100
+alpha_values <- c(0.01, 0.03, 0.1)
+results <- lapply(alpha_values, function(alpha) {
+  gradient_descent(x, y, B0_init = 0, B1_init = 0, alpha = alpha, num_iter = num_iter)
+})
+
+```
+
+```{r}
+
+library(ggplot2)
+library(gganimate)
+
+# Preparar os dados para animação
+animation_data <- do.call(rbind, lapply(1:length(alpha_values), function(i) {
+  data.frame(
+    Iteration = 1:num_iter,
+    B0 = results[[i]]$B0_history,
+    B1 = results[[i]]$B1_history,
+    Cost = results[[i]]$cost_history,
+    Alpha = as.factor(alpha_values[i])
+  )
+}))
+
+# Animação
+p <- ggplot(animation_data, aes(x = B0, y = B1, color = Cost, frame = Iteration)) +
+  geom_point() +
+  scale_color_gradient(low = "blue", high = "red") +
+  facet_wrap(~ Alpha, labeller = label_both) +
+  labs(title = "Gradient Descent Progression", x = "B0", y = "B1") +
+  theme_minimal()
+
+animate(p, nframes = num_iter, width = 800, height = 600)
+
+```

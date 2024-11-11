@@ -56,6 +56,8 @@ retas <- function(n, beta1, beta0) {
   epsilon <- rnorm(n, 0, sqrt(var_epsilon))
   y       <- beta0 + beta1 * x + epsilon
 
+  y[n] <- y[n] + 42
+
   modelo       <- lm(y ~ x)
   beta0_chapeu <- modelo$coefficients[[1]]
   beta1_chapeu <- modelo$coefficients[[2]]
@@ -194,3 +196,8 @@ summary_stats <- map_df(results, function(result) {
 
 print(summary_stats)
 ```
+
+## Conclusão
+Adicionando um outlier podemos obeservar que as distribuições dos betas e de $S^2$ ficam mais dispersas. Em especial a de $S^2$ que acaba ficando bem deslocada do real parâmetro.
+Entretando com o aumento do tamanho da amostra, as estimativas dos betas e do $S^2$ tendem a ficar mais estáveis e menos sensíveis ao outlier, indicando robustez do modelo conforme $n$ aumenta.
+Um outlier atrapalha a forma funcional linear e a homocasticidade e assim consequentemente a normalidade.
