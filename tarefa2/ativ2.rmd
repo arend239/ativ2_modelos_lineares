@@ -1,21 +1,21 @@
-
 ---
 title: Modelos Lineares
-author:
 output:
   html_document:
     toc: true
     toc_float:
         collapsed: true
         smooth_scroll: true
-    toc_depth: 3        
+    toc_depth: 3
     code_folding: show
     theme: flatly
     code_download: true
 fontsize: 14pt
 ---
 
-Autores: João Vitor da Silva Arend - 00577787, Davi Augusto F. da Silva
+Autores:
+João Vitor da Silva Arend - 00577787,
+Davi Augusto F. da Silva
 
 ## Instruções
 ### Simulação Monte Carlo dos Betas do Modelo de Regressão
@@ -31,94 +31,173 @@ Autores: João Vitor da Silva Arend - 00577787, Davi Augusto F. da Silva
 
 ## Resolução
 
-```{r warning=FALSE, include=FALSE}
+```{r libraries, warning=FALSE, include=FALSE}
 
 library(tidyverse)
 library(dplyr)
-set.seed(30102024)
+library(purrr)
+library(tibble)
+library(ggplot2)
+library(patchwork)
+```
+
+```{r simul, warning=FALSE}
+set.seed(42)
+
+n_values    <- c(25, 50, 100, 500, 1000)
+rep         <- 1000
+beta0       <- 3
+beta1       <- 4
+var_epsilon <- 4
+
+retas <- function(n, beta1, beta0) {
+
+  x       <- runif(n, -3, 3)
+  epsilon <- rnorm(n, 0, sqrt(var_epsilon))
+  y       <- beta0 + beta1 * x + epsilon
+
+  y[n] <- y[n] + 42
+
+  modelo       <- lm(y ~ x)
+  beta0_chapeu <- modelo$coefficients[[1]]
+  beta1_chapeu <- modelo$coefficients[[2]]
+  residuos     <- sum(modelo$residuals^2) / (n - 1)
+
+  summary_model <- summary(modelo)
+  t_beta0       <- summary_model$coefficients[1, "t value"]
+  p_beta0       <- summary_model$coefficients[1, "Pr(>|t|)"]
+  t_beta1       <- summary_model$coefficients[2, "t value"]
+  p_beta1       <- summary_model$coefficients[2, "Pr(>|t|)"]
+
+  list(x            = x,
+       y            = y,
+       beta0_chapeu = beta0_chapeu,
+       beta1_chapeu = beta1_chapeu,
+       s2           = residuos,
+       t_beta0      = t_beta0,
+       p_beta0      = p_beta0,
+       t_beta1      = t_beta1,
+       p_beta1      = p_beta1
+    )
+}
+
+results <- map(n_values, function(n) {
+
+  amostras    <- map(1:rep, ~ retas(n, beta1, beta0))
+  lista_beta0 <- map_dbl(amostras, "beta0_chapeu")
+  lista_beta1 <- map_dbl(amostras, "beta1_chapeu")
+  lista_s2    <- map_dbl(amostras, "s2")
+
+  lista_t_beta0 <- map_dbl(amostras, "t_beta0")
+  lista_p_beta0 <- map_dbl(amostras, "p_beta0")
+  lista_t_beta1 <- map_dbl(amostras, "t_beta1")
+  lista_p_beta1 <- map_dbl(amostras, "p_beta1")
+
+  betas_estimados <- data.frame(
+    beta0_chapeu_mc = lista_beta0,
+    beta1_chapeu_mc = lista_beta1,
+    s2_mc           = lista_s2,
+    t_beta0_mc      = lista_t_beta0,
+    p_beta0_mc      = lista_p_beta0,
+    t_beta1_mc      = lista_t_beta1,
+    p_beta1_mc      = lista_p_beta1
+  )
+
+  lista_x <- map(amostras, "x")
+  matriz_x <- do.call(cbind, lista_x)
+
+  lista_y <- map(amostras, "y")
+  matriz_y <- do.call(cbind, lista_y)
+
+  list(
+    n = n,
+    betas_estimados = betas_estimados,
+    matriz_x = matriz_x,
+    matriz_y = matriz_y
+  )
+})
+
 ```
 
 ```{r}
 
-set.seed(1)
+plot_histograms <- function(result) {
+  n <- result$n
+  betas_estimados <- result$betas_estimados
 
-nn          <- c(25, 50, 100, 500, 1000)
-monte_carlo <- 1000
+  p1 <- ggplot(betas_estimados, aes(x = beta0_chapeu_mc)) +
+    geom_histogram() +
+    geom_vline(xintercept = beta0, color = "red") +
+    labs(title = paste("Histograma beta0_chapeu n =", n),
+         x = "beta0_chapeu")
 
-simula_modelo <- function(n) {
-  x <- runif(n, -3, 3)
-  epsilon <- rnorm(n, 0, 2)
-  beta_0 <- 3
-  beta_1 <- 4
-  y <- beta_0 + beta_1 * x + epsilon
+  p2 <- ggplot(betas_estimados, aes(x = beta1_chapeu_mc)) +
+    geom_histogram() +
+    geom_vline(xintercept = beta1, color = "red") +
+    labs(title = paste("Histograma beta1_chapeu n =", n),
+         x = "beta1_chapeu")
 
-  # -- Aqui eu meto os outlier... sei que tem uma função chamada outlier mas não me veio na cabeça de aplicar aq
-  x[n] <- 10
-  y[n] <- 100
-  
-  modelo <- lm(y ~ x)
-  modelo_sum <- summary(modelo)
-  
-  list(
-    beta_0 = coef(modelo)[1],
-    beta_1 = coef(modelo)[2],
-    sigma2 = modelo_sum$sigma^2,
-    p_value_beta_0 = modelo_sum$coefficients[1, 4],
-    p_value_beta_1 = modelo_sum$coefficients[2, 4]
-  )
+  p3 <- ggplot(betas_estimados, aes(x = s2_mc)) +
+    geom_histogram() +
+    geom_vline(xintercept = var_epsilon, color = "red") +
+    labs(title = paste("Histograma s2 n =", n),
+         x = "s2")
+
+  print(p1)
+  print(p2)
+  print(p3)
 }
 
-resultados <- lapply(nn, function(n) {
-  replicate(monte_carlo, simula_modelo(n), simplify = FALSE)
+walk(results, plot_histograms)
+```
+
+```{r}
+
+compute_summary_stats <- function(betas_estimados) {
+  betas_estimados %>%
+    summarize(
+      mean_beta0_chapeu = mean(beta0_chapeu_mc),
+      var_beta0_chapeu = var(beta0_chapeu_mc),
+      median_beta0_chapeu = median(beta0_chapeu_mc),
+
+      mean_beta1_chapeu = mean(beta1_chapeu_mc),
+      var_beta1_chapeu = var(beta1_chapeu_mc),
+      median_beta1_chapeu = median(beta1_chapeu_mc),
+
+      mean_s2 = mean(s2_mc),
+      var_s2 = var(s2_mc),
+      median_s2 = median(s2_mc),
+
+      #mean_t_beta0 = mean(t_beta0_mc),
+      #var_t_beta0 = var(t_beta0_mc),
+      #median_t_beta0 = median(t_beta0_mc),
+
+      #mean_p_beta0 = mean(p_beta0_mc),
+      #var_p_beta0 = var(p_beta0_mc),
+      #median_p_beta0 = median(p_beta0_mc),
+
+      #mean_t_beta1 = mean(t_beta1_mc),
+      #var_t_beta1 = var(t_beta1_mc),
+      #median_t_beta1 = median(t_beta1_mc),
+
+      #mean_p_beta1 = mean(p_beta1_mc),
+      #var_p_beta1 = var(p_beta1_mc),
+      #median_p_beta1 = median(p_beta1_mc)
+    )
+}
+
+summary_stats <- map_df(results, function(result) {
+  n <- result$n
+  betas_estimados <- result$betas_estimados
+
+  stats <- compute_summary_stats(betas_estimados)
+  stats %>% mutate(n = n)
 })
 
-
-dfresultados <- do.call(rbind, lapply(seq_along(nn), function(i) {
-  n <- nn[i]
-  do.call(rbind, lapply(resultados[[i]], function(res) {
-    data.frame(
-      n = n,
-      beta_0 = res$beta_0,
-      beta_1 = res$beta_1,
-      sigma2 = res$sigma2,
-      p_value_beta_0 = res$p_value_beta_0,
-      p_value_beta_1 = res$p_value_beta_1
-    )
-  }))
-}))
-
-
-
-# -- Pipeline pica aqui né, pode falar, ficou duro quando viu isso né
-stats <- dfresultados %>%
-  group_by(n) %>%
-  summarise(
-    mean_beta_0 = mean(beta_0),
-    var_beta_0 = var(beta_0),
-    median_beta_0 = median(beta_0),
-    mean_beta_1 = mean(beta_1),
-    var_beta_1 = var(beta_1),
-    median_beta_1 = median(beta_1),
-    var_sigma2 = var(sigma2),
-    median_sigma2 = median(sigma2)
-  )
-
-ggplot(dfresultados, aes(x = beta_0)) +
-    geom_histogram() +
-    geom_vline(aes(xintercept = mean(beta_0)), color = "red", linetype = "dashed") +
-    facet_wrap(~ n, scales = "free") +
-    labs(title = "Histograma de Beta_0", x = "Beta_0", y = "Frequência")
-
-ggplot(dfresultados, aes(x = beta_1)) +
-  geom_histogram() +
-  geom_vline(aes(xintercept = mean(beta_1)), color = "red", linetype = "dashed") +
-  facet_wrap(~ n, scales = "free") +
-  labs(title = "Histograma de Beta_1", x = "Beta_1", y = "Frequência")
-
-ggplot(dfresultados, aes(x = sigma2)) +
-  geom_histogram() +
-  geom_vline(aes(xintercept = mean(sigma2)), color = "red", linetype = "dashed") +
-  facet_wrap(~ n, scales = "free") +
-  labs(title = "Histograma de Sigma^2", x = "Sigma^2", y = "Frequência")
-
+print(summary_stats)
 ```
+
+## Conclusão
+Adicionando um outlier podemos obeservar que as distribuições dos betas e de $S^2$ ficam mais dispersas. Em especial a de $S^2$ que acaba ficando bem deslocada do real parâmetro.
+Entretando com o aumento do tamanho da amostra, as estimativas dos betas e do $S^2$ tendem a ficar mais estáveis e menos sensíveis ao outlier, indicando robustez do modelo conforme $n$ aumenta.
+Um outlier atrapalha a forma funcional linear e a homocasticidade e assim consequentemente a normalidade.
