@@ -1,0 +1,179 @@
+---
+title: "Regressão Linear com Gradiente Descendente"
+output: html_document
+name: Davi, Diogo, João e Thiago
+---
+
+Alunos:
+
+Davi, Diogo, João Arend, Thiago Schedler e Gabriel
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE}
+library(ggplot2)
+library(gganimate)
+library(dplyr)
+library(tidyr)
+library(magick)
+
+```
+
+# 1. Simule um conjunto de dados de 300 obsrvações, considerando o modelo linear
+
+Neste passo, estamos simulando um conjunto de dados para um modelo de regressão linear com 300 observações.
+
+Definição dos Parâmetros: $B_{0}$ e $B_{1}$ são gerados aleatoriamente entre -5 e 5.
+
+Variável Independente e Erro: A variável x é criada a partir de uma distribuição normal com média 0 e desvio padrão 1, e o erro erro é gerado com média 0 e desvio 5.5.
+
+Cálculo de y: y é obtido a partir da combinação linear de x, os parâmetros $B_{0}$ e $B_{1}$, e o erro.
+
+Visualização: Um gráfico de dispersão é criado para mostrar a relação entre x e y, com o título indicando os valores de $B_{0}$ e $B_{1}$.
+
+```{r}
+set.seed(12)
+
+beta0 <- runif(1, min = -5, max = 5)
+beta1 <- runif(1, min = -5, max = 5)
+
+n <- 300
+x <- rnorm(n, mean = 0, sd = 1)
+erro <- rnorm(n, mean = 0, sd = 5.5)
+y <- beta0 + beta1 * x + erro
+
+data <- data.frame(X = x, Y = y)
+
+ggplot(data, aes(x = x, y = y)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  labs(title = "Dados Simulados para o Modelo Linear",
+       subtitle = paste("beta 0 =", round(beta0, 2), ", beta 1 =", round(beta1, 2)),
+       x = "X",
+       y = "Y") +
+  theme_minimal()
+
+
+resultados_lm <- data.frame(Parâmetro = c("β₀", "β₁"), 
+                            Estimativa = c(round(beta0, 2), round(beta1, 2)))
+row.names(resultados_lm) <- NULL
+knitr::kable(resultados_lm)
+```
+
+# 2. Estime os parâmetros B_0 e B_1 do modelo, considere como função custo a soma dos erros de predição ao quadrado 
+
+Nesta etapa, usamos a função lm() para estimar os parâmetros $B_{0}$ e $B_{1}$ do modelo linear, minimizando a soma dos erros de predição.
+
+Ajuste do Modelo: O modelo é ajustado com lm(Y ~ X, data = data), que fornece as estimativas de $B_{0}$ e $B_{1}$.
+
+```{r,echo=FALSE}
+modelo_lm <- lm(Y ~ X, data = data)
+
+beta0_lm <- coef(modelo_lm)[1]
+beta1_lm <- coef(modelo_lm)[2]
+
+resultados_lm <- data.frame(Parâmetro = c("β₀", "β₁"), 
+                            Estimativa = c(round(beta0_lm, 2), round(beta1_lm, 2)))
+row.names(resultados_lm) <- NULL
+knitr::kable(resultados_lm, caption = "Estimativas dos Parâmetros com `lm()`")
+
+```
+
+# 3. Utilize o gradiente descendente para achar os valores de B_0 e B_1 que minimizam essa função.
+
+Nesta parte, aplicamos o algoritmo do gradiente descendente para encontrar os valores de $B_{0}$ e $B_{1}$ que minimizam a função de custo.
+
+```{r,echo=FALSE}
+alpha <- 0.01
+
+y_pred <- beta0 + beta1 * data$X
+error <- data$Y - y_pred
+
+grad_beta0 <- -2 * mean(error)
+grad_beta1 <- -2 * mean(error * data$X)
+beta0_gd <- beta0- alpha * grad_beta0
+beta1_gd <- beta1 - alpha * grad_beta1
+
+resultados_gd <- data.frame(Parâmetro = c("β₀", "β₁"), 
+                            Estimativa = c(round(beta0_gd, 2), round(beta1_gd, 2)))
+knitr::kable(resultados_gd, caption = "Parâmetros após uma iteração do Gradiente Descendente")
+
+```
+
+# 4. Utilize diferentes valores para alpha
+
+Aqui, experimentamos diferentes valores de alpha para observar o efeito da taxa de aprendizado sobre os parâmetros.
+
+```{r}
+alphas <- c(0.001, 0.01, 0.1, 0.5)
+results <- data.frame(alpha = alphas, beta0 = NA, beta1 = NA)
+
+for (i in seq_along(alphas)) {
+  alpha <- alphas[i]
+  
+  beta0_gd <- runif(1, min = -5, max = 5)
+  beta1_gd <- runif(1, min = -5, max = 5)
+  
+  y_pred <- beta0_gd + beta1_gd * data$X
+  error <- data$Y - y_pred
+  grad_beta0 <- -2 * mean(error)
+  grad_beta1 <- -2 * mean(error * data$X)
+  beta0_gd <- beta0_gd - alpha * grad_beta0
+  beta1_gd <- beta1_gd - alpha * grad_beta1
+  
+  results$beta0[i] <- round(beta0_gd, 2)
+  results$beta1[i] <- round(beta1_gd, 2)
+}
+
+knitr::kable(results, caption = "Valores dos Parâmetros para Diferentes Taxas de Aprendizado (α)")
+```
+
+# 5. Faça um gganimate dos passos do algoritmo.
+
+Criamos uma animação para mostrar o ajuste do modelo linear ao longo das iterações do gradiente descendente
+
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+gradient_descent <- function(x, y, lr = 0.01, num_iter = 50) {
+  beta0 <- runif(1, min = -5, max = 5)
+  beta1 <- runif(1, min = -5, max = 5)
+  
+  history <- list()
+  
+  for (i in 1:num_iter) {
+    y_pred <- beta0 + beta1 * x
+    error <- y - y_pred
+    
+    grad_beta0 <- -2 * mean(error)
+    grad_beta1 <- -2 * mean(error * x)
+    
+    beta0 <- beta0 - lr * grad_beta0
+    beta1 <- beta1 - lr * grad_beta1
+    
+    history[[i]] <- list(iter = i, beta0 = beta0, beta1 = beta1, y_pred = y_pred)
+  }
+  
+  return(history)
+}
+
+history <- gradient_descent(data$X, data$Y, lr = 0.01, num_iter = 50)
+
+frames <- list()
+for (i in 1:length(history)) {
+  iter_data <- history[[i]]
+  beta0 <- iter_data$beta0
+  beta1 <- iter_data$beta1
+  
+  p <- ggplot(data, aes(x = X, y = Y)) +
+    geom_point(color = 'blue', alpha = 0.6) +
+    geom_abline(intercept = beta0, slope = beta1, color = 'red', size = 1) +
+    labs(title = paste('Ajuste da Regressão Linear: Iteração', iter_data$iter),
+         x = 'X', y = 'Y') +
+    ylim(min(y) - 5, max(y) + 5)
+  
+  frame <- paste0("frame_", i, ".png")
+  ggsave(frame, plot = p, width = 5, height = 5)
+  frames[[i]] <- image_read(frame)  
+}
+
+animation <- image_animate(image_join(frames), fps = 5)
+
+print(animation)
+
+```
